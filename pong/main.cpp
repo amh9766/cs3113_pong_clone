@@ -52,9 +52,10 @@ class Paddle {
     private:
         //Collision hitbox;
         glm::vec3 position;
+        float direction;
         GLuint texture_id;
         int score;
-        bool is_cpu;
+        bool is_player;
     
     public:
         glm::mat4 model_matrix;
@@ -63,10 +64,11 @@ class Paddle {
         {
             //this->hitbox = Collision(0.0f, 0.0f, 0.0f, 0.0f);
             this->position = position;
+            this->direction = 0.0f;
             this->model_matrix = glm::mat4(1.0f);
             this->texture_id = texture_id;
             this->score = 0;
-            this->is_cpu = false;
+            this->is_player = true;
         }
 
         const GLuint& get_texture_id()
@@ -79,22 +81,37 @@ class Paddle {
             return this->position;
         }
 
-        void move(bool is_up, float theta)
+        void set_neutral()
         {
-            if(is_cpu)
-            {
-                this->position.y = cosf(theta);
-            }
-            else
-            {
-                this->position.y += (is_up ? 1.0f : -1.0f);
-            }
-
+            this->direction = 0.0f;
         }
 
-        void toggle_cpu()
+        void set_up()
         {
-            this->is_cpu = !this->is_cpu;
+            this->direction = 1.0f;
+        }
+
+        void set_down()
+        {
+            this->direction = -1.0f;
+        }
+
+        void move(float delta_time)
+        {
+            if(this->is_player)
+            {
+                this->position.y += this->direction * delta_time;
+            }
+        }
+
+        bool get_status() 
+        {
+            return this->is_player;
+        }
+
+        void toggle_playability()
+        {
+            this->is_player = !this->is_player;
         }
 };
 
@@ -283,10 +300,41 @@ void process_input()
     SDL_Event event;
     while (SDL_PollEvent(&event))
     {
-        if (event.type == SDL_QUIT || event.type == SDL_WINDOWEVENT_CLOSE)
+        switch (event.type)
         {
-            g_app_status = TERMINATED;
-        }
+            // End game
+            case SDL_QUIT:
+            case SDL_WINDOWEVENT_CLOSE:
+                g_app_status = TERMINATED;
+                break;
+            case SDL_KEYDOWN:
+                switch (event.key.keysym.sym)
+                {
+                    case SDLK_q: 
+                        g_app_status = TERMINATED;
+                        break;
+                    default: 
+                        break;
+                }
+            default:
+                break;
+        } 
+    }
+
+    const Uint8 *key_state = SDL_GetKeyboardState(NULL);
+
+    // Check up and down movement for keys held down:
+    // - Player 1 -> W, S
+    // - Player 2 -> Up, Down
+    if      (key_state[SDL_SCANCODE_W]) player_one->set_up();
+    else if (key_state[SDL_SCANCODE_S]) player_one->set_down();
+    else                                player_one->set_neutral();
+
+    if (player_two->get_status())
+    {
+        if      (key_state[SDL_SCANCODE_UP])   player_two->set_up();
+        else if (key_state[SDL_SCANCODE_DOWN]) player_two->set_down();
+        else                                   player_two->set_neutral();
     }
 }
 
@@ -300,6 +348,8 @@ void update()
     g_cumulative_delta_time += delta_time;
 
     /* Game logic */
+    player_one->move(delta_time);
+    player_two->move(delta_time);
 
     /* Model matrix reset */
     player_one->model_matrix = glm::mat4(1.0f);
