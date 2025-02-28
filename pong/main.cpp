@@ -159,6 +159,21 @@ constexpr glm::vec3 PADDLE_INIT_SCALE = glm::vec3(0.64, 1.28f, 0.0f),
                     BALL_INIT_SCALE   = glm::vec3(0.64f, 0.64f, 0.0f),
                     WALL_INIT_SCALE   = glm::vec3(8.0f, 0.64f, 0.0f);
 
+const glm::mat4 TOP_WALL_MODEL_MATRIX = glm::scale(
+                    glm::translate(
+                        glm::mat4(1.0f),
+                        glm::vec3(0.0f, 2.67f, 0.0f)
+                    ),
+                    WALL_INIT_SCALE
+                ),
+                LOW_WALL_MODEL_MATRIX = glm::scale(
+                    glm::translate(
+                        glm::mat4(1.0f),
+                        glm::vec3(0.0f, -2.67, 0.0f)
+                    ),
+                    WALL_INIT_SCALE
+                );
+
 SDL_Window* g_display_window;
 AppStatus g_app_status = RUNNING;
 ShaderProgram g_shader_program = ShaderProgram();
@@ -168,8 +183,7 @@ Paddle* player_two = nullptr;
 
 Ball* balls = nullptr;
 
-glm::mat4 g_wall_model_matrix,
-          g_view_matrix,
+glm::mat4 g_view_matrix,
           g_projection_matrix;
 
 float g_previous_ticks = 0.0f;
@@ -235,7 +249,6 @@ void initialise()
 
     g_shader_program.load(V_SHADER_PATH, F_SHADER_PATH);
 
-    g_wall_model_matrix       = glm::mat4(1.0f);
     g_view_matrix       = glm::mat4(1.0f);
     g_projection_matrix = glm::ortho(-4.0f, 4.0f, -3.0f, 3.0f, -1.0f, 1.0f);
 
@@ -297,8 +310,6 @@ void update()
         balls[i].model_matrix = glm::mat4(1.0f);
     }
 
-    g_wall_model_matrix = glm::mat4(1.0f);
-
     /* Transformations */
     player_one->model_matrix = glm::scale(
         glm::translate(
@@ -323,15 +334,10 @@ void update()
             BALL_INIT_SCALE
         );
     }
-
-    g_wall_model_matrix = glm::scale(
-        g_wall_model_matrix,
-        WALL_INIT_SCALE
-    );
 }
 
 
-void draw_object(glm::mat4 &object_g_model_matrix, const GLuint &object_texture_id)
+void draw_object(const glm::mat4 &object_g_model_matrix, const GLuint &object_texture_id)
 {
     g_shader_program.set_model_matrix(object_g_model_matrix);
     glBindTexture(GL_TEXTURE_2D, object_texture_id);
@@ -386,7 +392,8 @@ void render()
         draw_object(balls[i].model_matrix, g_ball_texture_id);
     }
 
-    draw_object(g_wall_model_matrix, g_wall_texture_id);
+    draw_object(TOP_WALL_MODEL_MATRIX, g_wall_texture_id);
+    draw_object(LOW_WALL_MODEL_MATRIX, g_wall_texture_id);
 
     // We disable two attribute arrays now
     glDisableVertexAttribArray(g_shader_program.get_position_attribute());
