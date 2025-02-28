@@ -1,7 +1,7 @@
 /**
 * Author: Amani Hernandez (amh9766)
-* Assignment: Simple 2D Scene
-* Date due: 2025-02-15, 11:59pm
+* Assignment: Pong Clone
+* Date due: 2025-3-01, 11:59pm
 * I pledge that I have completed this assignment without
 * collaborating with anyone else, in conformance with the
 * NYU School of Engineering Policies and Procedures on
@@ -26,6 +26,107 @@
 
 enum AppStatus { RUNNING, TERMINATED };
 
+class Collision {
+    private:
+        float left, right, bottom, top;
+        
+    public:
+        Collision(float left, float bottom, float right, float top)
+        {
+            this->left = left;
+            this->bottom = bottom;
+            this->right = right;
+            this->top = top;
+        }
+
+        bool intersects_with(Collision& collision)
+        {
+            return (collision.left < this->right) &&
+                   (collision.right > this->left) &&
+                   (collision.bottom > this->top) &&
+                   (collision.top < this->bottom);
+        }
+};
+
+class Paddle {
+    private:
+        //Collision hitbox;
+        glm::vec3 position;
+        GLuint texture_id;
+        int score;
+        bool is_cpu;
+    
+    public:
+        glm::mat4 model_matrix;
+
+        Paddle(glm::vec3 position, GLuint texture_id)
+        {
+            //this->hitbox = Collision(0.0f, 0.0f, 0.0f, 0.0f);
+            this->position = position;
+            this->model_matrix = glm::mat4(1.0f);
+            this->texture_id = texture_id;
+            this->score = 0;
+            this->is_cpu = false;
+        }
+
+        const GLuint& get_texture_id()
+        {
+            return this->texture_id;
+        }
+
+        glm::vec3& get_position()
+        {
+            return this->position;
+        }
+
+        void move(bool is_up, float theta)
+        {
+            if(is_cpu)
+            {
+                this->position.y = cosf(theta);
+            }
+            else
+            {
+                this->position.y += (is_up ? 1.0f : -1.0f);
+            }
+
+        }
+
+        void toggle_cpu()
+        {
+            this->is_cpu = !this->is_cpu;
+        }
+};
+
+class Ball
+{
+    private:
+        //Collision hitbox;
+        glm::vec3 position;
+        glm::vec3 direction;
+        bool is_player_one;
+        bool is_enabled;
+
+    public:
+        static constexpr int MAX_AMOUNT = 3;
+        glm::mat4 model_matrix;
+
+        Ball()
+        {
+            //this->hitbox = Collision(0.0f, 0.0f, 0.0f, 0.0f);
+            this->model_matrix = glm::mat4(1.0f);
+            this->position = glm::vec3(1.0f, 1.0f, 0.0f);
+            this->direction = glm::vec3(1.0f, 1.0f, 0.0f);
+            this->is_player_one = true;
+            this->is_enabled = false;
+        }
+
+        void toggle();
+        void calculate_direction();
+        void move();
+
+};
+
 constexpr int WINDOW_WIDTH  = 960,
               WINDOW_HEIGHT = 720;
 
@@ -48,47 +149,34 @@ constexpr GLint NUMBER_OF_TEXTURES = 1, // to be generated, that is
                 LEVEL_OF_DETAIL    = 0, // mipmap reduction image level
                 TEXTURE_BORDER     = 0; // this value MUST be zero
 
-// Sources:
-//      * Earth - https://nssdc.gsfc.nasa.gov/photo_gallery/photogallery-earth.html
-//      * Moon - https://nssdc.gsfc.nasa.gov/photo_gallery/photogallery-moon.html
-//      * Sun - https://nssdc.gsfc.nasa.gov/photo_gallery/photogallery-solar.html
-//      * Universe - https://science.nasa.gov/image-detail/nustar160728a-2/
-constexpr char EARTH_FILEPATH[]      = "content/earth.png",
-               MOON_FILEPATH[]       = "content/moon.png",
-               SUN_FILEPATH[]        = "content/sun.png",
-               UNIVERSE_FILEPATH[]   = "content/universe.jpg";
+// Source: https://www.spriters-resource.com/nes/supermariobros/sheet/52571/
+constexpr char PLAYER_ONE_FILEPATH[] = "content/player_one.png",
+               PLAYER_TWO_FILEPATH[] = "content/player_two.png",
+               BALL_FILEPATH[]       = "content/ball.png",
+               WALL_FILEPATH[]       = "content/wall.png";
 
-constexpr float EARTH_ORBIT_RADIUS = 2.50f,
-                MOON_ORBIT_RADIUS  = 0.75f;
-
-constexpr glm::vec3 EARTH_INIT_SCALE    = glm::vec3(0.75f, 0.75f, 0.0f),
-                    MOON_INIT_SCALE     = glm::vec3(0.25f, 0.25f, 0.25f),
-                    SUN_INIT_SCALE      = glm::vec3(4.0f, 4.0f, 0.0f),
-                    UNIVERSE_INIT_SCALE = glm::vec3(8.0f, 8.0f, 0.0f);
+constexpr glm::vec3 PADDLE_INIT_SCALE = glm::vec3(0.64, 1.28f, 0.0f),
+                    BALL_INIT_SCALE   = glm::vec3(0.64f, 0.64f, 0.0f),
+                    WALL_INIT_SCALE   = glm::vec3(8.0f, 0.64f, 0.0f);
 
 SDL_Window* g_display_window;
 AppStatus g_app_status = RUNNING;
 ShaderProgram g_shader_program = ShaderProgram();
 
-glm::mat4 g_earth_matrix,
-          g_moon_matrix,
-          g_sun_matrix,
-          g_universe_matrix,
+Paddle* player_one = nullptr;
+Paddle* player_two = nullptr;
+
+Ball* balls = nullptr;
+
+glm::mat4 g_wall_model_matrix,
           g_view_matrix,
           g_projection_matrix;
 
 float g_previous_ticks = 0.0f;
 float g_cumulative_delta_time = 0.0f;
 
-glm::vec3 g_sun_rotation   = glm::vec3(0.0f, 0.0f, 0.0f),
-          g_earth_position = glm::vec3(0.0f, 0.0f, 0.0f),
-          g_moon_position  = glm::vec3(0.0f, 0.0f, 0.0f);
-
-GLuint g_earth_texture_id,
-       g_moon_texture_id,
-       g_sun_texture_id,
-       g_universe_texture_id;
-
+GLuint g_ball_texture_id,
+       g_wall_texture_id;
 
 GLuint load_texture(const char* filepath)
 {
@@ -124,7 +212,7 @@ void initialise()
     // Initialise video
     SDL_Init(SDL_INIT_VIDEO);
 
-    g_display_window = SDL_CreateWindow("Simple Scene",
+    g_display_window = SDL_CreateWindow("Pong Clone",
                                       SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED,
                                       WINDOW_WIDTH, WINDOW_HEIGHT,
                                       SDL_WINDOW_OPENGL);
@@ -147,10 +235,7 @@ void initialise()
 
     g_shader_program.load(V_SHADER_PATH, F_SHADER_PATH);
 
-    g_earth_matrix      = glm::mat4(1.0f);
-    g_moon_matrix       = glm::mat4(1.0f);
-    g_sun_matrix        = glm::mat4(1.0f);
-    g_universe_matrix   = glm::mat4(1.0f);
+    g_wall_model_matrix       = glm::mat4(1.0f);
     g_view_matrix       = glm::mat4(1.0f);
     g_projection_matrix = glm::ortho(-4.0f, 4.0f, -3.0f, 3.0f, -1.0f, 1.0f);
 
@@ -161,10 +246,19 @@ void initialise()
 
     glClearColor(BG_RED, BG_BLUE, BG_GREEN, BG_OPACITY);
 
-    g_earth_texture_id       = load_texture(EARTH_FILEPATH);
-    g_moon_texture_id        = load_texture(MOON_FILEPATH);
-    g_sun_texture_id         = load_texture(SUN_FILEPATH);
-    g_universe_texture_id    = load_texture(UNIVERSE_FILEPATH);
+    g_ball_texture_id = load_texture(BALL_FILEPATH);
+    g_wall_texture_id = load_texture(WALL_FILEPATH);
+
+    player_one = new Paddle(
+        glm::vec3(-3.02f, 0.0f, 0.0f),
+        load_texture(PLAYER_ONE_FILEPATH)
+    );
+    player_two = new Paddle(
+        glm::vec3(3.08f, 0.0f, 0.0f),
+        load_texture(PLAYER_TWO_FILEPATH)
+    );
+
+    balls = new Ball[Ball::MAX_AMOUNT];
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -193,42 +287,51 @@ void update()
     g_cumulative_delta_time += delta_time;
 
     /* Game logic */
-    float earth_theta    = g_cumulative_delta_time;
-    float moon_theta     = -earth_theta * 2.0f;
-    float sun_theta      = earth_theta * 1.5f;
-    float universe_theta = earth_theta * 0.2f;
-
-    g_earth_position.x = EARTH_ORBIT_RADIUS * cosf(earth_theta);
-    g_earth_position.y = EARTH_ORBIT_RADIUS * sinf(earth_theta);
-
-    g_moon_position.x = MOON_ORBIT_RADIUS * cosf(moon_theta);
-    g_moon_position.y = MOON_ORBIT_RADIUS * sinf(moon_theta);
 
     /* Model matrix reset */
-    g_earth_matrix      = glm::mat4(1.0f);
-    g_moon_matrix       = glm::mat4(1.0f);
-    g_sun_matrix        = glm::mat4(1.0f);
-    g_universe_matrix   = glm::mat4(1.0f);
+    player_one->model_matrix = glm::mat4(1.0f);
+    player_two->model_matrix = glm::mat4(1.0f);
+
+    for (int i = 0; i < Ball::MAX_AMOUNT; i++)
+    {
+        balls[i].model_matrix = glm::mat4(1.0f);
+    }
+
+    g_wall_model_matrix = glm::mat4(1.0f);
 
     /* Transformations */
-    g_earth_matrix = glm::translate(g_earth_matrix, g_earth_position);
-    g_earth_matrix = glm::scale(g_earth_matrix, EARTH_INIT_SCALE);
+    player_one->model_matrix = glm::scale(
+        glm::translate(
+            player_one->model_matrix,
+            player_one->get_position()
+        ),
+        PADDLE_INIT_SCALE
+    );
 
-    g_moon_matrix = glm::translate(g_moon_matrix, g_earth_position);
-    g_moon_matrix = glm::translate(g_moon_matrix, g_moon_position);
-    g_moon_matrix = glm::scale(g_moon_matrix, MOON_INIT_SCALE);
+    player_two->model_matrix = glm::scale(
+        glm::translate(
+            player_two->model_matrix,
+            player_two->get_position()
+        ),
+        PADDLE_INIT_SCALE
+    );
 
-    glm::vec3 g_sun_scale = SUN_INIT_SCALE * (1.0f - 0.1f*cosf(sun_theta));
-    g_sun_matrix = glm::scale(g_sun_matrix, g_sun_scale);
+    for (int i = 0; i < Ball::MAX_AMOUNT; i++)
+    {
+        balls[i].model_matrix = glm::scale(
+            balls[i].model_matrix,
+            BALL_INIT_SCALE
+        );
+    }
 
-    g_universe_matrix = glm::rotate(g_universe_matrix, 
-                                      universe_theta,
-                                      glm::vec3(0.0f, 0.0f, 1.0f));
-    g_universe_matrix = glm::scale(g_universe_matrix, UNIVERSE_INIT_SCALE);
+    g_wall_model_matrix = glm::scale(
+        g_wall_model_matrix,
+        WALL_INIT_SCALE
+    );
 }
 
 
-void draw_object(glm::mat4 &object_g_model_matrix, GLuint &object_texture_id)
+void draw_object(glm::mat4 &object_g_model_matrix, const GLuint &object_texture_id)
 {
     g_shader_program.set_model_matrix(object_g_model_matrix);
     glBindTexture(GL_TEXTURE_2D, object_texture_id);
@@ -275,10 +378,15 @@ void render()
     glEnableVertexAttribArray(g_shader_program.get_tex_coordinate_attribute());
 
     // Bind texture
-    draw_object(g_universe_matrix, g_universe_texture_id);
-    draw_object(g_earth_matrix, g_earth_texture_id);
-    draw_object(g_moon_matrix, g_moon_texture_id);
-    draw_object(g_sun_matrix, g_sun_texture_id);
+    draw_object(player_one->model_matrix, player_one->get_texture_id());
+    draw_object(player_two->model_matrix, player_two->get_texture_id());
+
+    for (int i = 0; i < Ball::MAX_AMOUNT; i++)
+    {
+        draw_object(balls[i].model_matrix, g_ball_texture_id);
+    }
+
+    draw_object(g_wall_model_matrix, g_wall_texture_id);
 
     // We disable two attribute arrays now
     glDisableVertexAttribArray(g_shader_program.get_position_attribute());
@@ -288,7 +396,15 @@ void render()
 }
 
 
-void shutdown() { SDL_Quit(); }
+void shutdown()
+{ 
+    delete player_one;
+    delete player_two;
+
+    delete [] balls;
+
+    SDL_Quit(); 
+}
 
 
 int main(int argc, char* argv[])
