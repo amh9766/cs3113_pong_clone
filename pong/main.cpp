@@ -48,7 +48,8 @@ class Collision {
         }
 };
 
-class Paddle {
+class Paddle
+{
     private:
         //Collision hitbox;
         glm::vec3 position;
@@ -58,6 +59,8 @@ class Paddle {
         bool is_player;
     
     public:
+        static constexpr float VERTICAL_BOUND = 1.712f;
+        static constexpr glm::vec3 INIT_POS = glm::vec3(3.06f, 0.0f, 0.0f);
         glm::mat4 model_matrix;
 
         Paddle(glm::vec3 position, GLuint texture_id)
@@ -100,7 +103,8 @@ class Paddle {
         {
             if(this->is_player)
             {
-                this->position.y += this->direction * delta_time;
+                this->position.y += this->direction * 2 * delta_time;
+                this->position.y = std::max(-VERTICAL_BOUND, std::min(this->position.y, VERTICAL_BOUND));
             }
         }
 
@@ -112,6 +116,11 @@ class Paddle {
         void toggle_playability()
         {
             this->is_player = !this->is_player;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const Paddle& p)
+        {
+            return os << "Position:\n\tX: " << p.position.x << "\n\tY: " << p.position.y;
         }
 };
 
@@ -280,11 +289,11 @@ void initialise()
     g_wall_texture_id = load_texture(WALL_FILEPATH);
 
     player_one = new Paddle(
-        glm::vec3(-3.02f, 0.0f, 0.0f),
+        -Paddle::INIT_POS,
         load_texture(PLAYER_ONE_FILEPATH)
     );
     player_two = new Paddle(
-        glm::vec3(3.08f, 0.0f, 0.0f),
+        Paddle::INIT_POS,
         load_texture(PLAYER_TWO_FILEPATH)
     );
 
@@ -313,6 +322,13 @@ void process_input()
                     case SDLK_q: 
                         g_app_status = TERMINATED;
                         break;
+                    case SDLK_d:
+                        // Printing debug information
+                        LOG("Player 1");
+                        LOG(*player_one);
+
+                        LOG("Player 2");
+                        LOG(*player_two);
                     default: 
                         break;
                 }
