@@ -99,12 +99,30 @@ class Paddle
             this->direction = -1.0f;
         }
 
-        void move(float delta_time)
+        void update(float delta_time)
         {
             if(this->is_player)
             {
                 this->position.y += this->direction * 2 * delta_time;
                 this->position.y = std::max(-VERTICAL_BOUND, std::min(this->position.y, VERTICAL_BOUND));
+            }
+            else
+            {
+                float pos_change = this->direction * 2 * delta_time;
+                float new_pos = this->position.y + pos_change;
+
+                if (new_pos >= VERTICAL_BOUND)
+                {
+                    this->set_down();
+                    new_pos *= -1;
+                }
+                else if (new_pos <= -VERTICAL_BOUND)
+                {
+                    this->set_up();
+                    new_pos *= -1;
+                }
+
+                this->position.y += pos_change;
             }
         }
 
@@ -322,6 +340,11 @@ void process_input()
                     case SDLK_q: 
                         g_app_status = TERMINATED;
                         break;
+                    case SDLK_t:
+                        // Switch Player 2 to CPU mode and start it down
+                        player_two->toggle_playability();
+                        player_two->set_down();
+                        break;
                     case SDLK_d:
                         // Printing debug information
                         LOG("Player 1");
@@ -364,8 +387,8 @@ void update()
     g_cumulative_delta_time += delta_time;
 
     /* Game logic */
-    player_one->move(delta_time);
-    player_two->move(delta_time);
+    player_one->update(delta_time);
+    player_two->update(delta_time);
 
     /* Model matrix reset */
     player_one->model_matrix = glm::mat4(1.0f);
