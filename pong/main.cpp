@@ -221,11 +221,30 @@ class Ball
             return this->is_enabled;
         }
 
+        bool get_ownership()
+        {
+            return this->is_player_one;
+        }
+
+        void set_player_one()
+        {
+            this->is_player_one = true;
+        }
+
+        void set_player_two()
+        {
+            this->is_player_one = false;
+        }
+
         void set_random_direction()
         {
             float theta = get_rand_radian();
             this->direction.x = cosf(theta);
             this->direction.y = sinf(theta);
+
+            if (this->direction.x <= 0) this->is_player_one = false;
+            else this->is_player_one = true;
+
         }
 
         bool is_out_of_bounds(Paddle* p1, Paddle* p2)
@@ -252,7 +271,7 @@ class Ball
             this->set_random_direction();
         }
 
-        void update(float delta_time, Paddle* p)
+        bool update(float delta_time, Paddle* p)
         {
             float total_speed = SPEED + 0.1f * bounces;
             float p_width = p->get_width();
@@ -270,11 +289,14 @@ class Ball
             bool new_col_y = (b_pos.y - this->height <= p_pos.y) &&
                              (b_pos.y >= p_pos.y - p_height);
 
+            bool hit_paddle = false;
+
             if (new_col_x && new_col_y)
             {
                 if (old_col_x != new_col_x) this->direction.x *= -1.0f;
                 if (old_col_y != new_col_y) this->direction.y *= -1.0f;
                 this->bounces++;
+                hit_paddle = true;
             }
 
             if ((b_pos.y >= VERTICAL_BOUND) ||
@@ -285,6 +307,7 @@ class Ball
             } 
 
             this->position += this->direction * total_speed * delta_time;
+            return hit_paddle;
         }
 
         friend std::ostream& operator<<(std::ostream& os, const Ball& b)
@@ -321,7 +344,8 @@ constexpr GLint NUMBER_OF_TEXTURES = 1, // to be generated, that is
 // Source: https://www.spriters-resource.com/nes/supermariobros/sheet/52571/
 constexpr char PLAYER_ONE_FILEPATH[] = "content/player_one.png",
                PLAYER_TWO_FILEPATH[] = "content/player_two.png",
-               BALL_FILEPATH[]       = "content/ball.png",
+               BALL_ONE_FILEPATH[]   = "content/ball_one.png",
+               BALL_TWO_FILEPATH[]   = "content/ball_two.png",
                WALL_FILEPATH[]       = "content/wall.png",
                WIN_ONE_FILEPATH[]    = "content/win_one.png",
                WIN_TWO_FILEPATH[]    = "content/win_two.png";
@@ -365,7 +389,8 @@ glm::mat4 g_view_matrix,
 float g_previous_ticks = 0.0f;
 float g_cumulative_delta_time = 0.0f;
 
-GLuint g_ball_texture_id,
+GLuint g_ball_one_texture_id,
+       g_ball_two_texture_id,
        g_wall_texture_id,
        g_win_one_texture_id,
        g_win_two_texture_id;
@@ -443,7 +468,8 @@ void initialise()
 
     glClearColor(BG_RED, BG_BLUE, BG_GREEN, BG_OPACITY);
 
-    g_ball_texture_id = load_texture(BALL_FILEPATH);
+    g_ball_one_texture_id = load_texture(BALL_ONE_FILEPATH);
+    g_ball_two_texture_id = load_texture(BALL_TWO_FILEPATH);
     g_wall_texture_id = load_texture(WALL_FILEPATH);
     g_win_one_texture_id = load_texture(WIN_ONE_FILEPATH);
     g_win_two_texture_id = load_texture(WIN_TWO_FILEPATH);
@@ -556,11 +582,13 @@ void update()
 
         if (balls[0].get_position().x <= 0) 
         {
-            balls[0].update(delta_time, player_one);
+            bool hit_paddle = balls[0].update(delta_time, player_one);
+            if (hit_paddle) balls[0].set_player_one();
         }
         else
         {
-            balls[0].update(delta_time, player_two);
+            bool hit_paddle = balls[0].update(delta_time, player_two);
+            if (hit_paddle) balls[0].set_player_two();
         }
 
         if (balls[0].is_out_of_bounds(player_one, player_two)) balls[0].reset();
@@ -673,7 +701,13 @@ void render()
 
         for (int i = 0; i < Ball::MAX_AMOUNT; i++)
         {
-            if (balls[i].get_status()) draw_object(balls[i].model_matrix, g_ball_texture_id);
+            if (balls[i].get_status()) 
+            {
+                draw_object(balls[i].model_matrix, 
+                            balls[i].get_ownership() ? g_ball_one_texture_id
+                                                     : g_ball_two_texture_id
+                );
+            }
         }
 
         draw_object(TOP_WALL_MODEL_MATRIX, g_wall_texture_id);
