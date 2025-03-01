@@ -23,35 +23,18 @@
 #include "glm/gtc/matrix_transform.hpp"
 #include "ShaderProgram.h"
 #include "stb_image.h"
+#include <time.h>
+#include <stdlib.h>
 
 enum AppStatus { RUNNING, TERMINATED };
 
-class Collision {
-    private:
-        float left, right, bottom, top;
-        
-    public:
-        Collision(float left, float bottom, float right, float top)
-        {
-            this->left = left;
-            this->bottom = bottom;
-            this->right = right;
-            this->top = top;
-        }
-
-        bool intersects_with(Collision& collision)
-        {
-            return (collision.left < this->right) &&
-                   (collision.right > this->left) &&
-                   (collision.bottom > this->top) &&
-                   (collision.top < this->bottom);
-        }
-};
+constexpr float SPEED = 3.0f;
 
 class Paddle
 {
+    static constexpr float VERTICAL_BOUND = 1.712f;
+
     private:
-        //Collision hitbox;
         glm::vec3 position;
         float direction;
         GLuint texture_id;
@@ -59,14 +42,15 @@ class Paddle
         bool is_player;
     
     public:
-        static constexpr float VERTICAL_BOUND = 1.712f;
         static constexpr glm::vec3 INIT_POS = glm::vec3(3.06f, 0.0f, 0.0f);
+        float width, height;
         glm::mat4 model_matrix;
 
         Paddle(glm::vec3 position, GLuint texture_id)
         {
-            //this->hitbox = Collision(0.0f, 0.0f, 0.0f, 0.0f);
             this->position = position;
+            this->width = 0.472;
+            this->height = 0.78f;
             this->direction = 0.0f;
             this->model_matrix = glm::mat4(1.0f);
             this->texture_id = texture_id;
@@ -79,9 +63,19 @@ class Paddle
             return this->texture_id;
         }
 
-        glm::vec3& get_position()
+        glm::vec3 get_position()
         {
             return this->position;
+        }
+
+        float get_width()
+        {
+            return this->width;
+        }
+
+        float get_height()
+        {
+            return this->height;
         }
 
         void set_neutral()
@@ -108,7 +102,7 @@ class Paddle
             }
             else
             {
-                float pos_change = this->direction * 2 * delta_time;
+                float pos_change = this->direction * SPEED * delta_time;
                 float new_pos = this->position.y + pos_change;
 
                 if (new_pos >= VERTICAL_BOUND)
@@ -144,12 +138,21 @@ class Paddle
 
 class Ball
 {
+    static constexpr float VERTICAL_BOUND = 2.2f;
+
     private:
-        //Collision hitbox;
         glm::vec3 position;
         glm::vec3 direction;
+        float width, height;
+        int bounces;
         bool is_player_one;
         bool is_enabled;
+
+        static float get_rand_radian()
+        {
+            float normalized = ((float) rand()) / ((float) RAND_MAX);
+            return 2.0f * M_PI * normalized - M_PI / 2.0f;
+        }
 
     public:
         static constexpr int MAX_AMOUNT = 3;
@@ -157,18 +160,98 @@ class Ball
 
         Ball()
         {
-            //this->hitbox = Collision(0.0f, 0.0f, 0.0f, 0.0f);
             this->model_matrix = glm::mat4(1.0f);
-            this->position = glm::vec3(1.0f, 1.0f, 0.0f);
-            this->direction = glm::vec3(1.0f, 1.0f, 0.0f);
+            this->position = glm::vec3(0.0f, 0.0f, 0.0f);
+            this->direction = glm::vec3(0.0f, 0.0f, 0.0f);
+            this->width = 0.472f;
+            this->height = 0.78f;
+            this->bounces = 0;
             this->is_player_one = true;
+            this->is_enabled = false;
+
+            this->set_random_direction();
+        }
+
+        float get_width()
+        {
+            return this->width;
+        }
+
+        float get_height()
+        {
+            return this->height;
+        }
+
+        glm::vec3 get_position()
+        {
+            return this->position;
+        }
+
+        void enable()
+        {
+            this->is_enabled = true;
+        }
+
+        void disable()
+        {
             this->is_enabled = false;
         }
 
-        void toggle();
-        void calculate_direction();
-        void move();
+        bool get_status()
+        {
+            return this->is_enabled;
+        }
 
+        void set_random_direction()
+        {
+            float theta = get_rand_radian();
+            LOG(theta);
+            this->direction.x = cosf(theta);
+            this->direction.y = sinf(theta);
+        }
+
+        void update(float delta_time, Paddle* p)
+        {
+            float total_speed = SPEED + 0.1f * bounces;
+            float p_width = p->get_width();
+            float p_height = p->get_height();
+            glm::vec3 p_pos = p->get_position();
+            glm::vec3 b_pos = this->position + this->direction * total_speed * delta_time;
+
+            bool old_col_x = (this->position.x <= p_pos.x + p_width) && 
+                             (this->position.x + this->width  >= p_pos.x);
+            bool old_col_y = (this->position.y - this->height <= p_pos.y) &&
+                             (this->position.y >= p_pos.y - p_height);
+
+            bool new_col_x = (b_pos.x <= p_pos.x + p_width) && 
+                             (b_pos.x + this->width  >= p_pos.x);
+            bool new_col_y = (b_pos.y - this->height <= p_pos.y) &&
+                             (b_pos.y >= p_pos.y - p_height);
+
+            if (new_col_x && new_col_y)
+            {
+                if (old_col_x != new_col_x) this->direction.x *= -1.0f;
+                if (old_col_y != new_col_y) this->direction.y *= -1.0f;
+                this->bounces++;
+            }
+
+            if ((b_pos.y >= VERTICAL_BOUND) ||
+                (b_pos.y <= -VERTICAL_BOUND))
+            {
+                this->direction.y *= -1.0f;
+                this->bounces++;
+            } 
+
+            this->position += this->direction * total_speed * delta_time;
+        }
+
+        friend std::ostream& operator<<(std::ostream& os, const Ball& b)
+        {
+            return os << "Position:\n\tX: " << b.position.x << "\n\tY: " << b.position.y
+                      << "\nVelocity:\n\tX: " << b.direction.x << "\n\tY: " << b.direction.y
+                                              << "\n\tSpeed: " << (SPEED + b.bounces * 0.1f)
+                                              << "\n\tBounces: " << b.bounces;
+        }
 };
 
 constexpr int WINDOW_WIDTH  = 960,
@@ -200,7 +283,7 @@ constexpr char PLAYER_ONE_FILEPATH[] = "content/player_one.png",
                WALL_FILEPATH[]       = "content/wall.png";
 
 constexpr glm::vec3 PADDLE_INIT_SCALE = glm::vec3(0.64, 1.28f, 0.0f),
-                    BALL_INIT_SCALE   = glm::vec3(0.64f, 0.64f, 0.0f),
+                    BALL_INIT_SCALE   = glm::vec3(0.32f, 0.32f, 0.0f),
                     WALL_INIT_SCALE   = glm::vec3(8.0f, 0.64f, 0.0f);
 
 const glm::mat4 TOP_WALL_MODEL_MATRIX = glm::scale(
@@ -267,6 +350,9 @@ GLuint load_texture(const char* filepath)
 
 void initialise()
 {
+    // Initialize random generator
+    srand(time(NULL));
+
     // Initialise video
     SDL_Init(SDL_INIT_VIDEO);
 
@@ -316,6 +402,7 @@ void initialise()
     );
 
     balls = new Ball[Ball::MAX_AMOUNT];
+    balls[0].enable();
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -352,6 +439,9 @@ void process_input()
 
                         LOG("Player 2");
                         LOG(*player_two);
+
+                        LOG("Ball 1");
+                        LOG(balls[0]);
                     default: 
                         break;
                 }
@@ -390,13 +480,22 @@ void update()
     player_one->update(delta_time);
     player_two->update(delta_time);
 
+    if (balls[0].get_position().x <= 0) 
+    {
+        balls[0].update(delta_time, player_one);
+    }
+    else
+    {
+        balls[0].update(delta_time, player_two);
+    }
+
     /* Model matrix reset */
     player_one->model_matrix = glm::mat4(1.0f);
     player_two->model_matrix = glm::mat4(1.0f);
 
     for (int i = 0; i < Ball::MAX_AMOUNT; i++)
     {
-        balls[i].model_matrix = glm::mat4(1.0f);
+        if (balls[i].get_status()) balls[i].model_matrix = glm::mat4(1.0f);
     }
 
     /* Transformations */
@@ -418,10 +517,16 @@ void update()
 
     for (int i = 0; i < Ball::MAX_AMOUNT; i++)
     {
-        balls[i].model_matrix = glm::scale(
-            balls[i].model_matrix,
-            BALL_INIT_SCALE
-        );
+        if (balls[i].get_status())
+        {
+            balls[i].model_matrix = glm::scale(
+                glm::translate(
+                    balls[i].model_matrix,
+                    balls[i].get_position()
+                ),
+                BALL_INIT_SCALE
+            );
+        }
     }
 }
 
@@ -478,7 +583,7 @@ void render()
 
     for (int i = 0; i < Ball::MAX_AMOUNT; i++)
     {
-        draw_object(balls[i].model_matrix, g_ball_texture_id);
+        if (balls[i].get_status()) draw_object(balls[i].model_matrix, g_ball_texture_id);
     }
 
     draw_object(TOP_WALL_MODEL_MATRIX, g_wall_texture_id);
