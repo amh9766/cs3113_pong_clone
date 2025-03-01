@@ -509,6 +509,29 @@ void process_input()
                     case SDLK_q: 
                         g_app_status = TERMINATED;
                         break;
+                    case SDLK_3:
+                        for (int i = 0; i < Ball::MAX_AMOUNT; i++)
+                        {
+                            balls[i].reset();
+                            balls[i].enable();
+                        }
+                        break;
+                    case SDLK_2:
+                        for (int i = 0; i < Ball::MAX_AMOUNT - 1; i++)
+                        {
+                            balls[i].reset();
+                            balls[i].enable();
+                        }
+                        balls[2].disable();
+                        break;
+                    case SDLK_1:
+                        for (int i = 1; i < Ball::MAX_AMOUNT; i++)
+                        {
+                            balls[i].disable();
+                        }
+                        balls[0].reset();
+                        balls[0].enable();
+                        break;
                     case SDLK_t:
                         // Switch Player 2 to CPU mode and start it down
                         player_two->toggle_playability();
@@ -522,8 +545,14 @@ void process_input()
                         LOG("Player 2");
                         LOG(*player_two);
 
-                        LOG("Ball 1");
-                        LOG(balls[0]);
+                        for (int i = 0; i < Ball::MAX_AMOUNT; i++)
+                        {
+                            if (balls[i].get_status())
+                            {
+                                LOG("Ball " << i);
+                                LOG(balls[i]);
+                            }
+                        }
                         break;
                     case SDLK_RETURN:
                         if (g_won)
@@ -580,18 +609,31 @@ void update()
         player_one->update(delta_time);
         player_two->update(delta_time);
 
-        if (balls[0].get_position().x <= 0) 
+        for (int i = 0; i < Ball::MAX_AMOUNT; i++)
         {
-            bool hit_paddle = balls[0].update(delta_time, player_one);
-            if (hit_paddle) balls[0].set_player_one();
-        }
-        else
-        {
-            bool hit_paddle = balls[0].update(delta_time, player_two);
-            if (hit_paddle) balls[0].set_player_two();
-        }
+            if (balls[i].get_status())
+            {
+                if (balls[i].get_position().x <= 0) 
+                {
+                    bool hit_paddle = balls[i].update(delta_time, player_one);
+                    if (hit_paddle) balls[i].set_player_one();
+                }
+                else
+                {
+                    bool hit_paddle = balls[i].update(delta_time, player_two);
+                    if (hit_paddle) balls[i].set_player_two();
+                }
 
-        if (balls[0].is_out_of_bounds(player_one, player_two)) balls[0].reset();
+                if (balls[i].is_out_of_bounds(player_one, player_two))
+                {
+                    for (int j = 0; j < Ball::MAX_AMOUNT; j++)
+                    {
+                        balls[j].reset();
+                    }
+                    break;
+                }
+            }
+        }
 
         /* Model matrix reset */
         player_one->model_matrix = glm::mat4(1.0f);
