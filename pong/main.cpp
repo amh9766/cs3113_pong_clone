@@ -395,8 +395,14 @@ void draw_number(const glm::mat4 &number_matrix, int num)
 
     float texture_coordinates[] =
     {
-        u_coord, v_coord + height, u_coord + width, v_coord + height, u_coord + width,
-        v_coord, u_coord, v_coord + height, u_coord + width, v_coord, u_coord, v_coord
+        // Triangle 1
+        u_coord, v_coord + height,         // Lower left
+        u_coord + width, v_coord + height, // Lower right
+        u_coord + width, v_coord,          // Upper right
+        // Triangle 2
+        u_coord, v_coord + height,         // Lower left
+        u_coord + width, v_coord,          // Upper right
+        u_coord, v_coord                   // Upper left
     };
 
     // Set new texture coordinates
