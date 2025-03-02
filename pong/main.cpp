@@ -196,7 +196,6 @@ void initialise()
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
-
 void process_input()
 {
     SDL_Event event;
@@ -216,29 +215,40 @@ void process_input()
                         g_app_status = TERMINATED;
                         break;
                     case SDLK_3:
-                        for (int i = 0; i < Ball::MAX_AMOUNT; i++)
+                        // Set up three balls
+                        if (!g_pause)
                         {
-                            balls[i].reset();
-                            balls[i].enable();
+                            for (int i = 0; i < Ball::MAX_AMOUNT; i++)
+                            {
+                                balls[i].reset();
+                                balls[i].enable();
+                            }
                         }
                         break;
                     case SDLK_2:
-                        for (int i = 0; i < Ball::MAX_AMOUNT - 1; i++)
+                        // Set up two balls
+                        if (!g_pause)
                         {
-                            balls[i].reset();
-                            balls[i].enable();
+                            for (int i = 0; i < Ball::MAX_AMOUNT - 1; i++)
+                            {
+                                balls[i].reset();
+                                balls[i].enable();
+                            }
+                            balls[2].disable();
                         }
-                        balls[2].disable();
                         break;
                     case SDLK_1:
-                        for (int i = 1; i < Ball::MAX_AMOUNT; i++) balls[i].disable();
-                        balls[0].reset();
-                        balls[0].enable();
+                        // Set up one ball
+                        if (!g_pause)
+                        {
+                            for (int i = 1; i < Ball::MAX_AMOUNT; i++) balls[i].disable();
+                            balls[0].reset();
+                            balls[0].enable();
+                        }
                         break;
                     case SDLK_t:
                         // Switch Player 2 to CPU mode and start it down
                         player_two->toggle_playability();
-                        player_two->set_down();
                         break;
                     case SDLK_d:
                         // Print debug information
@@ -252,7 +262,7 @@ void process_input()
                         {
                             if (balls[i].get_status())
                             {
-                                LOG("Ball " << i);
+                                LOG("Ball " << i + 1);
                                 LOG(balls[i]);
                             }
                         }

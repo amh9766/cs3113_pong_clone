@@ -115,6 +115,8 @@ class Paddle
             }
             else
             {
+                if (this->direction == 0.0f) this->set_down();
+
                 float pos_change = this->direction * SPEED * delta_time;
                 float new_pos = this->position.y + pos_change;
 
