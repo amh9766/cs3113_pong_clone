@@ -335,7 +335,7 @@ void update()
     g_previous_ticks = ticks;
 
     /* Game logic */
-    if (!g_pause || g_won)
+    if (!g_pause && !g_won)
     {
         player_one->update(delta_time);
         player_two->update(delta_time);
