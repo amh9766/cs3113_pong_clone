@@ -53,6 +53,11 @@ class Paddle
             return this->model_matrix;
         }
 
+        int get_score()
+        {
+            return this->score;
+        }
+
         void update_model_matrix()
         {
             this->model_matrix = glm::scale(

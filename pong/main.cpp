@@ -50,6 +50,20 @@ const glm::mat4 TOP_WALL_MODEL_MATRIX = glm::scale(
                  SCREEN_MODEL_MATRIX = glm::scale(
                     IDENTITY_MATRIX,
                     SCREEN_INIT_SCALE 
+                 ),
+                 PLAYER_ONE_SCORE_MODEL_MATRIX = glm::scale(
+                    glm::translate(
+                        IDENTITY_MATRIX,
+                        glm::vec3(-1.72f, 1.83f, 0.0f)
+                    ),
+                    Ball::INIT_SCALE
+                 ),
+                 PLAYER_TWO_SCORE_MODEL_MATRIX = glm::scale(
+                    glm::translate(
+                        IDENTITY_MATRIX,
+                        glm::vec3(1.72f, 1.83f, 0.0f)
+                    ),
+                    Ball::INIT_SCALE
                  );
 
 constexpr int WINDOW_WIDTH  = 960,
@@ -82,7 +96,8 @@ constexpr char PLAYER_ONE_FILEPATH[] = "content/player_one.png",
                WIN_ONE_FILEPATH[]    = "content/win_one.png",
                WIN_TWO_FILEPATH[]    = "content/win_two.png",
                WALL_FILEPATH[]       = "content/wall.png",
-               BACKGROUND_FILEPATH[] = "content/background.png";
+               BACKGROUND_FILEPATH[] = "content/background.png",
+               NUMBERS_FILEPATH[]    = "content/numbers.png";
 
 SDL_Window* g_display_window;
 AppStatus g_app_status = RUNNING;
@@ -102,7 +117,8 @@ GLuint g_ball_one_texture_id,
        g_wall_texture_id,
        g_win_one_texture_id,
        g_win_two_texture_id,
-       g_background_texture_id;
+       g_background_texture_id,
+       g_numbers_texture_id;
 
 bool g_pause = false;
 bool g_won = false;
@@ -182,6 +198,7 @@ void initialise()
     g_win_two_texture_id    = load_texture(WIN_TWO_FILEPATH);
     g_wall_texture_id       = load_texture(WALL_FILEPATH);
     g_background_texture_id = load_texture(BACKGROUND_FILEPATH);
+    g_numbers_texture_id    = load_texture(NUMBERS_FILEPATH);
 
     player_one = new Paddle(
         -Paddle::INIT_POS,
@@ -365,6 +382,33 @@ void draw_object(const glm::mat4 &object_g_model_matrix, const GLuint &object_te
     glDrawArrays(GL_TRIANGLES, 0, 6); // we are now drawing 2 triangles, so use 6, not 3
 }
 
+void draw_number(const glm::mat4 &number_matrix, int num)
+{
+    int cols = 10;
+    int rows = 1;
+
+    float u_coord = (float) (num % cols) / (float) cols;
+    float v_coord = (float) (num / cols) ;
+
+    float width = 1.0f / (float) cols;
+    float height = 1.0f / (float) rows;
+
+    float texture_coordinates[] =
+    {
+        u_coord, v_coord + height, u_coord + width, v_coord + height, u_coord + width,
+        v_coord, u_coord, v_coord + height, u_coord + width, v_coord, u_coord, v_coord
+    };
+
+    // Set new texture coordinates
+    glVertexAttribPointer(g_shader_program.get_tex_coordinate_attribute(), 2, GL_FLOAT, false,
+                          0, texture_coordinates);
+    glEnableVertexAttribArray(g_shader_program.get_tex_coordinate_attribute());
+
+    g_shader_program.set_model_matrix(number_matrix);
+    glBindTexture(GL_TEXTURE_2D, g_numbers_texture_id);
+    glDrawArrays(GL_TRIANGLES, 0, 6);
+}
+
 void render()
 {
     glClear(GL_COLOR_BUFFER_BIT);
@@ -418,6 +462,14 @@ void render()
     else
     {
         draw_object(SCREEN_MODEL_MATRIX, g_background_texture_id);
+
+        draw_number(PLAYER_ONE_SCORE_MODEL_MATRIX, player_one->get_score());
+        draw_number(PLAYER_TWO_SCORE_MODEL_MATRIX, player_two->get_score());
+
+        // Reset original texture coordinates
+        glVertexAttribPointer(g_shader_program.get_tex_coordinate_attribute(), 2, GL_FLOAT,
+                          false, 0, texture_coordinates);
+
         draw_object(player_one->get_model_matrix(), player_one->get_texture_id());
         draw_object(player_two->get_model_matrix(), player_two->get_texture_id());
 
