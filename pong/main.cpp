@@ -31,7 +31,7 @@
 enum AppStatus { RUNNING, TERMINATED };
 
 constexpr glm::vec3 WALL_INIT_SCALE = glm::vec3(8.0f, 0.64f, 0.0f),
-                    WIN_INIT_SCALE  = glm::vec3(8.0f, 6.0f, 0.0f);
+                    SCREEN_INIT_SCALE  = glm::vec3(8.0f, 6.0f, 0.0f);
 
 const glm::mat4 TOP_WALL_MODEL_MATRIX = glm::scale(
                     glm::translate(
@@ -47,9 +47,9 @@ const glm::mat4 TOP_WALL_MODEL_MATRIX = glm::scale(
                     ),
                     WALL_INIT_SCALE
                  ),
-                 WIN_SCREEN_MODEL_MATRIX = glm::scale(
+                 SCREEN_MODEL_MATRIX = glm::scale(
                     IDENTITY_MATRIX,
-                    WIN_INIT_SCALE 
+                    SCREEN_INIT_SCALE 
                  );
 
 constexpr int WINDOW_WIDTH  = 960,
@@ -79,9 +79,10 @@ constexpr char PLAYER_ONE_FILEPATH[] = "content/player_one.png",
                PLAYER_TWO_FILEPATH[] = "content/player_two.png",
                BALL_ONE_FILEPATH[]   = "content/ball_one.png",
                BALL_TWO_FILEPATH[]   = "content/ball_two.png",
-               WALL_FILEPATH[]       = "content/wall.png",
                WIN_ONE_FILEPATH[]    = "content/win_one.png",
-               WIN_TWO_FILEPATH[]    = "content/win_two.png";
+               WIN_TWO_FILEPATH[]    = "content/win_two.png",
+               WALL_FILEPATH[]       = "content/wall.png",
+               BACKGROUND_FILEPATH[] = "content/background.png";
 
 SDL_Window* g_display_window;
 AppStatus g_app_status = RUNNING;
@@ -100,7 +101,8 @@ GLuint g_ball_one_texture_id,
        g_ball_two_texture_id,
        g_wall_texture_id,
        g_win_one_texture_id,
-       g_win_two_texture_id;
+       g_win_two_texture_id,
+       g_background_texture_id;
 
 bool g_pause = false;
 bool g_won = false;
@@ -174,11 +176,12 @@ void initialise()
 
     glClearColor(BG_RED, BG_BLUE, BG_GREEN, BG_OPACITY);
 
-    g_ball_one_texture_id = load_texture(BALL_ONE_FILEPATH);
-    g_ball_two_texture_id = load_texture(BALL_TWO_FILEPATH);
-    g_win_one_texture_id  = load_texture(WIN_ONE_FILEPATH);
-    g_win_two_texture_id  = load_texture(WIN_TWO_FILEPATH);
-    g_wall_texture_id     = load_texture(WALL_FILEPATH);
+    g_ball_one_texture_id   = load_texture(BALL_ONE_FILEPATH);
+    g_ball_two_texture_id   = load_texture(BALL_TWO_FILEPATH);
+    g_win_one_texture_id    = load_texture(WIN_ONE_FILEPATH);
+    g_win_two_texture_id    = load_texture(WIN_TWO_FILEPATH);
+    g_wall_texture_id       = load_texture(WALL_FILEPATH);
+    g_background_texture_id = load_texture(BACKGROUND_FILEPATH);
 
     player_one = new Paddle(
         -Paddle::INIT_POS,
@@ -405,15 +408,16 @@ void render()
     {
         if (player_one->check_score()) 
         {
-            draw_object(WIN_SCREEN_MODEL_MATRIX, g_win_one_texture_id);
+            draw_object(SCREEN_MODEL_MATRIX, g_win_one_texture_id);
         }
         else
         {
-            draw_object(WIN_SCREEN_MODEL_MATRIX, g_win_two_texture_id);
+            draw_object(SCREEN_MODEL_MATRIX, g_win_two_texture_id);
         }
     }
     else
     {
+        draw_object(SCREEN_MODEL_MATRIX, g_background_texture_id);
         draw_object(player_one->get_model_matrix(), player_one->get_texture_id());
         draw_object(player_two->get_model_matrix(), player_two->get_texture_id());
 

@@ -16,7 +16,7 @@ class Paddle
 {
     public:
         static constexpr glm::vec3 INIT_SCALE = glm::vec3(0.64, 1.28f, 0.0f);
-        static constexpr glm::vec3 INIT_POS = glm::vec3(3.06f, 0.0f, 0.0f);
+        static constexpr glm::vec3 INIT_POS = glm::vec3(3.08f, 0.0f, 0.0f);
         static constexpr float VERTICAL_BOUND = 1.712f;
 
     private:
