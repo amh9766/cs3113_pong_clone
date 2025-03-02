@@ -48,6 +48,7 @@
 		CA9A77542D6A8F9600B32F36 /* SDL2_image.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2_image.framework; path = ../../../../../../../../Library/Frameworks/SDL2_image.framework; sourceTree = "<group>"; };
 		CA9A77552D6A8F9600B32F36 /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = ../../../../../../../../Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
 		CA9A77582D6A8FA800B32F36 /* SDL2_mixer.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2_mixer.framework; path = ../../../../../../../../Library/Frameworks/SDL2_mixer.framework; sourceTree = "<group>"; };
+		CA9A775A2D73EEC400B32F36 /* pong_lib.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = pong_lib.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -86,6 +87,7 @@
 		CA9A773A2D6A8DEF00B32F36 /* pong */ = {
 			isa = PBXGroup;
 			children = (
+				CA9A775A2D73EEC400B32F36 /* pong_lib.h */,
 				CA9A77442D6A8E1300B32F36 /* content */,
 				CA9A77472D6A8E1300B32F36 /* glm */,
 				CA9A77462D6A8E1300B32F36 /* helper.cpp */,

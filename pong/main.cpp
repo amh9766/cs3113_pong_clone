@@ -26,298 +26,31 @@
 #include <time.h>
 #include <stdlib.h>
 
+#include "pong_lib.h"
+
 enum AppStatus { RUNNING, TERMINATED };
 
-constexpr float SPEED = 3.0f;
-constexpr int FIRST_TO_SCORE = 3;
+constexpr glm::vec3 WALL_INIT_SCALE = glm::vec3(8.0f, 0.64f, 0.0f),
+                    WIN_INIT_SCALE  = glm::vec3(8.0f, 6.0f, 0.0f);
 
-class Paddle
-{
-    static constexpr float VERTICAL_BOUND = 1.712f;
-
-    private:
-        glm::vec3 position;
-        float direction;
-        GLuint texture_id;
-        int score;
-        bool is_player;
-    
-    public:
-        static constexpr glm::vec3 INIT_POS = glm::vec3(3.06f, 0.0f, 0.0f);
-        float width, height;
-        glm::mat4 model_matrix;
-
-        Paddle(glm::vec3 position, GLuint texture_id)
-        {
-            this->position = position;
-            this->width = 0.472;
-            this->height = 0.78f;
-            this->direction = 0.0f;
-            this->model_matrix = glm::mat4(1.0f);
-            this->texture_id = texture_id;
-            this->score = 0;
-            this->is_player = true;
-        }
-
-        const GLuint& get_texture_id()
-        {
-            return this->texture_id;
-        }
-
-        glm::vec3 get_position()
-        {
-            return this->position;
-        }
-
-        float get_width()
-        {
-            return this->width;
-        }
-
-        float get_height()
-        {
-            return this->height;
-        }
-
-        void set_neutral()
-        {
-            this->direction = 0.0f;
-        }
-
-        void set_up()
-        {
-            this->direction = 1.0f;
-        }
-
-        void set_down()
-        {
-            this->direction = -1.0f;
-        }
-
-        void increase_score()
-        {
-            this->score++;
-        }
-
-        bool check_score()
-        {
-            return this->score >= FIRST_TO_SCORE;
-        }
-
-        void reset()
-        {
-            this->position.y = 0.0f;
-            this->direction = 0.0f;
-            this->score = 0;
-        }
-
-        void update(float delta_time)
-        {
-            if(this->is_player)
-            {
-                this->position.y += this->direction * SPEED * delta_time;
-                this->position.y = std::max(-VERTICAL_BOUND, std::min(this->position.y, VERTICAL_BOUND));
-            }
-            else
-            {
-                float pos_change = this->direction * SPEED * delta_time;
-                float new_pos = this->position.y + pos_change;
-
-                if (new_pos >= VERTICAL_BOUND)
-                {
-                    this->set_down();
-                    new_pos *= -1;
-                }
-                else if (new_pos <= -VERTICAL_BOUND)
-                {
-                    this->set_up();
-                    new_pos *= -1;
-                }
-
-                this->position.y += pos_change;
-            }
-        }
-
-        bool get_status() 
-        {
-            return this->is_player;
-        }
-
-        void toggle_playability()
-        {
-            this->is_player = !this->is_player;
-        }
-
-        friend std::ostream& operator<<(std::ostream& os, const Paddle& p)
-        {
-            return os << "Position:\n\tX: " << p.position.x << "\n\tY: " << p.position.y;
-        }
-};
-
-class Ball
-{
-    static constexpr float VERTICAL_BOUND = 2.2f;
-    static constexpr float HORIZONTAL_BOUND = 4.17f;
-
-    private:
-        glm::vec3 position;
-        glm::vec3 direction;
-        float width, height;
-        int bounces;
-        bool is_player_one;
-        bool is_enabled;
-
-        static float get_rand_radian()
-        {
-            float normalized = ((float) rand()) / ((float) RAND_MAX);
-            return 2.0f * M_PI * normalized - M_PI / 2.0f;
-        }
-
-    public:
-        static constexpr int MAX_AMOUNT = 3;
-        glm::mat4 model_matrix;
-
-        Ball()
-        {
-            this->model_matrix = glm::mat4(1.0f);
-            this->position = glm::vec3(0.0f, 0.0f, 0.0f);
-            this->direction = glm::vec3(0.0f, 0.0f, 0.0f);
-            this->width = 0.472f;
-            this->height = 0.78f;
-            this->bounces = 0;
-            this->is_player_one = true;
-            this->is_enabled = false;
-
-            this->set_random_direction();
-        }
-
-        float get_width()
-        {
-            return this->width;
-        }
-
-        float get_height()
-        {
-            return this->height;
-        }
-
-        glm::vec3 get_position()
-        {
-            return this->position;
-        }
-
-        void enable()
-        {
-            this->is_enabled = true;
-        }
-
-        void disable()
-        {
-            this->is_enabled = false;
-        }
-
-        bool get_status()
-        {
-            return this->is_enabled;
-        }
-
-        bool get_ownership()
-        {
-            return this->is_player_one;
-        }
-
-        void set_player_one()
-        {
-            this->is_player_one = true;
-        }
-
-        void set_player_two()
-        {
-            this->is_player_one = false;
-        }
-
-        void set_random_direction()
-        {
-            float theta = get_rand_radian();
-            this->direction.x = cosf(theta);
-            this->direction.y = sinf(theta);
-
-            if (this->direction.x <= 0) this->is_player_one = false;
-            else this->is_player_one = true;
-
-        }
-
-        bool is_out_of_bounds(Paddle* p1, Paddle* p2)
-        {
-            if (this->position.x <= -HORIZONTAL_BOUND) 
-            {
-                p2->increase_score();
-                return true;
-            }
-
-            if (this->position.x >= HORIZONTAL_BOUND)
-            {
-                p1->increase_score();
-                return true;
-            }
-
-            return false;
-        }
-
-        void reset()
-        {
-            this->position = glm::vec3(0.0f, 0.0f, 0.0f);
-            this->bounces = 0;
-            this->set_random_direction();
-        }
-
-        bool update(float delta_time, Paddle* p)
-        {
-            float total_speed = SPEED + 0.1f * bounces;
-            float p_width = p->get_width();
-            float p_height = p->get_height();
-            glm::vec3 p_pos = p->get_position();
-            glm::vec3 b_pos = this->position + this->direction * total_speed * delta_time;
-
-            bool old_col_x = (this->position.x <= p_pos.x + p_width) && 
-                             (this->position.x + this->width  >= p_pos.x);
-            bool old_col_y = (this->position.y - this->height <= p_pos.y) &&
-                             (this->position.y >= p_pos.y - p_height);
-
-            bool new_col_x = (b_pos.x <= p_pos.x + p_width) && 
-                             (b_pos.x + this->width  >= p_pos.x);
-            bool new_col_y = (b_pos.y - this->height <= p_pos.y) &&
-                             (b_pos.y >= p_pos.y - p_height);
-
-            bool hit_paddle = false;
-
-            if (new_col_x && new_col_y)
-            {
-                if (old_col_x != new_col_x) this->direction.x *= -1.0f;
-                if (old_col_y != new_col_y) this->direction.y *= -1.0f;
-                this->bounces++;
-                hit_paddle = true;
-            }
-
-            if ((b_pos.y >= VERTICAL_BOUND) ||
-                (b_pos.y <= -VERTICAL_BOUND))
-            {
-                this->direction.y *= -1.0f;
-                this->bounces++;
-            } 
-
-            this->position += this->direction * total_speed * delta_time;
-            return hit_paddle;
-        }
-
-        friend std::ostream& operator<<(std::ostream& os, const Ball& b)
-        {
-            return os << "Position:\n\tX: " << b.position.x << "\n\tY: " << b.position.y
-                      << "\nVelocity:\n\tX: " << b.direction.x << "\n\tY: " << b.direction.y
-                                              << "\n\tSpeed: " << (SPEED + b.bounces * 0.1f)
-                                              << "\n\tBounces: " << b.bounces;
-        }
-};
+const glm::mat4 TOP_WALL_MODEL_MATRIX = glm::scale(
+                    glm::translate(
+                        IDENTITY_MATRIX,
+                        glm::vec3(0.0f, 2.67f, 0.0f)
+                    ),
+                    WALL_INIT_SCALE
+                 ),
+                 LOW_WALL_MODEL_MATRIX = glm::scale(
+                    glm::translate(
+                        IDENTITY_MATRIX,
+                        glm::vec3(0.0f, -2.67, 0.0f)
+                    ),
+                    WALL_INIT_SCALE
+                 ),
+                 WIN_SCREEN_MODEL_MATRIX = glm::scale(
+                    IDENTITY_MATRIX,
+                    WIN_INIT_SCALE 
+                 );
 
 constexpr int WINDOW_WIDTH  = 960,
               WINDOW_HEIGHT = 720;
@@ -335,7 +68,7 @@ constexpr int VIEWPORT_X      = 0,
 constexpr char V_SHADER_PATH[] = "shaders/vertex_textured.glsl",
                F_SHADER_PATH[] = "shaders/fragment_textured.glsl";
 
-constexpr float MILLISECONDS_IN_SECOND = 1000.0;
+constexpr float MILLISECONDS_IN_SECOND = 1000.0f;
 
 constexpr GLint NUMBER_OF_TEXTURES = 1, // to be generated, that is
                 LEVEL_OF_DETAIL    = 0, // mipmap reduction image level
@@ -350,44 +83,18 @@ constexpr char PLAYER_ONE_FILEPATH[] = "content/player_one.png",
                WIN_ONE_FILEPATH[]    = "content/win_one.png",
                WIN_TWO_FILEPATH[]    = "content/win_two.png";
 
-constexpr glm::vec3 PADDLE_INIT_SCALE = glm::vec3(0.64, 1.28f, 0.0f),
-                    BALL_INIT_SCALE   = glm::vec3(0.32f, 0.32f, 0.0f),
-                    WALL_INIT_SCALE   = glm::vec3(8.0f, 0.64f, 0.0f),
-                    WIN_INIT_SCALE    = glm::vec3(8.0f, 6.0f, 0.0f);
-
-const glm::mat4 TOP_WALL_MODEL_MATRIX = glm::scale(
-                    glm::translate(
-                        glm::mat4(1.0f),
-                        glm::vec3(0.0f, 2.67f, 0.0f)
-                    ),
-                    WALL_INIT_SCALE
-                ),
-                LOW_WALL_MODEL_MATRIX = glm::scale(
-                    glm::translate(
-                        glm::mat4(1.0f),
-                        glm::vec3(0.0f, -2.67, 0.0f)
-                    ),
-                    WALL_INIT_SCALE
-                ),
-                WIN_SCREEN_MODEL_MATRIX = glm::scale(
-                    glm::mat4(1.0f),
-                    WIN_INIT_SCALE 
-                );
-
 SDL_Window* g_display_window;
 AppStatus g_app_status = RUNNING;
 ShaderProgram g_shader_program = ShaderProgram();
 
-Paddle* player_one = nullptr;
-Paddle* player_two = nullptr;
-
-Ball* balls = nullptr;
+Paddle *player_one = nullptr, 
+       *player_two = nullptr;
+Ball   *balls      = nullptr;
 
 glm::mat4 g_view_matrix,
           g_projection_matrix;
 
 float g_previous_ticks = 0.0f;
-float g_cumulative_delta_time = 0.0f;
 
 GLuint g_ball_one_texture_id,
        g_ball_two_texture_id,
@@ -426,7 +133,6 @@ GLuint load_texture(const char* filepath)
     return textureID;
 }
 
-
 void initialise()
 {
     // Initialize random generator
@@ -458,7 +164,7 @@ void initialise()
 
     g_shader_program.load(V_SHADER_PATH, F_SHADER_PATH);
 
-    g_view_matrix       = glm::mat4(1.0f);
+    g_view_matrix       = IDENTITY_MATRIX;
     g_projection_matrix = glm::ortho(-4.0f, 4.0f, -3.0f, 3.0f, -1.0f, 1.0f);
 
     g_shader_program.set_projection_matrix(g_projection_matrix);
@@ -470,9 +176,9 @@ void initialise()
 
     g_ball_one_texture_id = load_texture(BALL_ONE_FILEPATH);
     g_ball_two_texture_id = load_texture(BALL_TWO_FILEPATH);
-    g_wall_texture_id = load_texture(WALL_FILEPATH);
-    g_win_one_texture_id = load_texture(WIN_ONE_FILEPATH);
-    g_win_two_texture_id = load_texture(WIN_TWO_FILEPATH);
+    g_win_one_texture_id  = load_texture(WIN_ONE_FILEPATH);
+    g_win_two_texture_id  = load_texture(WIN_TWO_FILEPATH);
+    g_wall_texture_id     = load_texture(WALL_FILEPATH);
 
     player_one = new Paddle(
         -Paddle::INIT_POS,
@@ -525,10 +231,7 @@ void process_input()
                         balls[2].disable();
                         break;
                     case SDLK_1:
-                        for (int i = 1; i < Ball::MAX_AMOUNT; i++)
-                        {
-                            balls[i].disable();
-                        }
+                        for (int i = 1; i < Ball::MAX_AMOUNT; i++) balls[i].disable();
                         balls[0].reset();
                         balls[0].enable();
                         break;
@@ -538,7 +241,7 @@ void process_input()
                         player_two->set_down();
                         break;
                     case SDLK_d:
-                        // Printing debug information
+                        // Print debug information
                         LOG("Player 1");
                         LOG(*player_one);
 
@@ -591,17 +294,15 @@ void process_input()
     }
 }
 
-
 void update()
 {
-    // Check if either player has won yet
+    // Check and store if either player has won yet
     g_won = player_one->check_score() || player_two->check_score();
 
     /* Delta time calculations */
     float ticks = (float) SDL_GetTicks() / MILLISECONDS_IN_SECOND;
     float delta_time = ticks - g_previous_ticks;
     g_previous_ticks = ticks;
-    g_cumulative_delta_time += delta_time;
 
     /* Game logic */
     if (!g_pause || g_won)
@@ -613,70 +314,36 @@ void update()
         {
             if (balls[i].get_status())
             {
+                bool hit_paddle = false;
                 if (balls[i].get_position().x <= 0) 
                 {
-                    bool hit_paddle = balls[i].update(delta_time, player_one);
+                    hit_paddle = balls[i].update(delta_time, player_one);
                     if (hit_paddle) balls[i].set_player_one();
                 }
                 else
                 {
-                    bool hit_paddle = balls[i].update(delta_time, player_two);
+                    hit_paddle = balls[i].update(delta_time, player_two);
                     if (hit_paddle) balls[i].set_player_two();
                 }
 
                 if (balls[i].is_out_of_bounds(player_one, player_two))
                 {
-                    for (int j = 0; j < Ball::MAX_AMOUNT; j++)
-                    {
-                        balls[j].reset();
-                    }
+                    for (int j = 0; j < Ball::MAX_AMOUNT; j++) balls[j].reset();
                     break;
                 }
             }
         }
 
-        /* Model matrix reset */
-        player_one->model_matrix = glm::mat4(1.0f);
-        player_two->model_matrix = glm::mat4(1.0f);
-
-        for (int i = 0; i < Ball::MAX_AMOUNT; i++)
-        {
-            if (balls[i].get_status()) balls[i].model_matrix = glm::mat4(1.0f);
-        }
-
         /* Transformations */
-        player_one->model_matrix = glm::scale(
-            glm::translate(
-                player_one->model_matrix,
-                player_one->get_position()
-            ),
-            PADDLE_INIT_SCALE
-        );
-
-        player_two->model_matrix = glm::scale(
-            glm::translate(
-                player_two->model_matrix,
-                player_two->get_position()
-            ),
-            PADDLE_INIT_SCALE
-        );
+        player_one->update_model_matrix();
+        player_two->update_model_matrix();
 
         for (int i = 0; i < Ball::MAX_AMOUNT; i++)
         {
-            if (balls[i].get_status())
-            {
-                balls[i].model_matrix = glm::scale(
-                    glm::translate(
-                        balls[i].model_matrix,
-                        balls[i].get_position()
-                    ),
-                    BALL_INIT_SCALE
-                );
-            }
+            if (balls[i].get_status()) balls[i].update_model_matrix();
         }
     }
 }
-
 
 void draw_object(const glm::mat4 &object_g_model_matrix, const GLuint &object_texture_id)
 {
@@ -684,7 +351,6 @@ void draw_object(const glm::mat4 &object_g_model_matrix, const GLuint &object_te
     glBindTexture(GL_TEXTURE_2D, object_texture_id);
     glDrawArrays(GL_TRIANGLES, 0, 6); // we are now drawing 2 triangles, so use 6, not 3
 }
-
 
 void render()
 {
@@ -738,16 +404,16 @@ void render()
     }
     else
     {
-        draw_object(player_one->model_matrix, player_one->get_texture_id());
-        draw_object(player_two->model_matrix, player_two->get_texture_id());
+        draw_object(player_one->get_model_matrix(), player_one->get_texture_id());
+        draw_object(player_two->get_model_matrix(), player_two->get_texture_id());
 
         for (int i = 0; i < Ball::MAX_AMOUNT; i++)
         {
             if (balls[i].get_status()) 
             {
-                draw_object(balls[i].model_matrix, 
-                            balls[i].get_ownership() ? g_ball_one_texture_id
-                                                     : g_ball_two_texture_id
+                draw_object(balls[i].get_model_matrix(), 
+                            balls[i].get_owner() ? g_ball_one_texture_id
+                                                 : g_ball_two_texture_id
                 );
             }
         }
@@ -763,7 +429,6 @@ void render()
     SDL_GL_SwapWindow(g_display_window);
 }
 
-
 void shutdown()
 { 
     delete player_one;
@@ -773,7 +438,6 @@ void shutdown()
 
     SDL_Quit(); 
 }
-
 
 int main(int argc, char* argv[])
 {
@@ -789,4 +453,3 @@ int main(int argc, char* argv[])
     shutdown();
     return 0;
 }
-
